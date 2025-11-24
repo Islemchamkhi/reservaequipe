@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import EquipmentManagement from './EquipmentManagement';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
-  const [equipment, setEquipment] = useState([]);
-  const [reservations, setReservations] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalEquipments: 0,
+    availableEquipments: 0,
+    maintenanceEquipments: 0,
+    totalReservations: 0
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,47 +22,21 @@ const Dashboard = () => {
       return;
     }
     setUser(JSON.parse(userData));
-    loadData();
+    loadStats();
   }, [navigate]);
 
-  const loadData = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      // Charger les équipements
-      const equipmentResponse = await fetch('http://localhost:5000/api/equipment', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (equipmentResponse.ok) {
-        const equipmentData = await equipmentResponse.json();
-        if (equipmentData.success) {
-          setEquipment(equipmentData.data);
-        }
-      }
-
-      // Charger les réservations
-      const reservationsResponse = await fetch('http://localhost:5000/api/reservations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (reservationsResponse.ok) {
-        const reservationsData = await reservationsResponse.json();
-        if (reservationsData.success) {
-          setReservations(reservationsData.data);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur chargement données:', error);
-    } finally {
-      setLoading(false);
-    }
+  const loadStats = () => {
+    // Simulation des statistiques
+    const equipments = JSON.parse(localStorage.getItem('equipments')) || [];
+    const available = equipments.filter(eq => eq.status === 'available').length;
+    const maintenance = equipments.filter(eq => eq.status === 'maintenance').length;
+    
+    setStats({
+      totalEquipments: equipments.length,
+      availableEquipments: available,
+      maintenanceEquipments: maintenance,
+      totalReservations: Math.floor(Math.random() * 50) + 10 // Simulation
+    });
   };
 
   const handleLogout = () => {
@@ -67,66 +45,20 @@ const Dashboard = () => {
     navigate('/login');
   };
 
-  const handleReserveEquipment = async (equipmentId) => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      // Créer une réservation de démonstration
-      const startTime = new Date();
-      const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // +2 heures
-      
-      const response = await fetch('http://localhost:5000/api/reservations', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          equipmentId: equipmentId,
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
-          purpose: 'Test de réservation'
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        alert('Réservation créée avec succès!');
-        loadData(); // Recharger les données
-        setActiveTab('reservations');
-      } else {
-        alert(data.message || 'Erreur lors de la réservation');
-      }
-    } catch (error) {
-      alert('Erreur lors de la réservation');
-    }
-  };
-
-  const handleCancelReservation = async (reservationId) => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch(`http://localhost:5000/api/reservations/${reservationId}/cancel`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        alert('Réservation annulée avec succès!');
-        loadData(); // Recharger les données
-      } else {
-        alert(data.message || 'Erreur lors de l\'annulation');
-      }
-    } catch (error) {
-      alert('Erreur lors de l\'annulation');
-    }
-  };
+  if (!user) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '50vh',
+        color: '#4169E1',
+        fontSize: '1.2rem'
+      }}>
+        <div className="loading-spinner">Chargement...</div>
+      </div>
+    );
+  }
 
   const getRoleDisplay = (role) => {
     const roles = {
@@ -137,377 +69,699 @@ const Dashboard = () => {
     return roles[role] || role;
   };
 
-  const getStatusDisplay = (status) => {
-    const statuses = {
-      'pending': 'En attente',
-      'approved': 'Approuvée',
-      'rejected': 'Rejetée',
-      'cancelled': 'Annulée',
-      'completed': 'Terminée'
-    };
-    return statuses[status] || status;
-  };
-
-  if (!user || loading) {
-    return (
+  const StatCard = ({ icon, title, value, color }) => (
+    <div style={{
+      background: 'white',
+      padding: '1.5rem',
+      borderRadius: '15px',
+      boxShadow: '0 5px 15px rgba(65, 105, 225, 0.1)',
+      textAlign: 'center',
+      border: `2px solid ${color}20`,
+      transition: 'transform 0.3s ease'
+    }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{icon}</div>
+      <h3 style={{ color: '#4169E1', margin: '0.5rem 0', fontSize: '1.1rem' }}>{title}</h3>
       <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '50vh',
-        color: '#8B4513',
-        fontSize: '1.2rem'
+        fontSize: '2rem', 
+        fontWeight: 'bold', 
+        color: color,
+        margin: '0.5rem 0'
       }}>
-        <div className="loading-spinner">Chargement...</div>
+        {value}
       </div>
-    );
-  }
+    </div>
+  );
+
+  const QuickAction = ({ icon, title, description, onClick, color = '#4169E1' }) => (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'white',
+        border: `2px solid ${color}30`,
+        borderRadius: '12px',
+        padding: '1.5rem',
+        textAlign: 'left',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        width: '100%',
+        color: '#00308F'
+      }}
+      onMouseOver={(e) => {
+        e.target.style.transform = 'translateY(-5px)';
+        e.target.style.boxShadow = '0 10px 25px rgba(65, 105, 225, 0.2)';
+      }}
+      onMouseOut={(e) => {
+        e.target.style.transform = 'translateY(0)';
+        e.target.style.boxShadow = 'none';
+      }}
+    >
+      <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>{icon}</div>
+      <h4 style={{ color, margin: '0 0 0.5rem 0' }}>{title}</h4>
+      <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.4' }}>{description}</p>
+    </button>
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
-      <div className="hero">
-        <div className="hero-container">
-          <div className="hero-content">
-            <h1>Tableau de Bord</h1>
+      {/* Header du Dashboard */}
+      <div style={{
+        background: 'linear-gradient(135deg, #4169E1 0%, #1E90FF 100%)',
+        color: 'white',
+        padding: '2rem 0'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: '2rem'
+          }}>
+            <div>
+              <h1 style={{ margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>
+                Tableau de Bord
+              </h1>
+              <div style={{ 
+                background: 'rgba(255,255,255,0.2)', 
+                padding: '1rem 1.5rem', 
+                borderRadius: '10px',
+                display: 'inline-block'
+              }}>
+                <p style={{ margin: '0.2rem 0', fontSize: '1.1rem' }}>
+                  👋 Bienvenue, <strong>{user.firstName} {user.lastName}</strong>
+                </p>
+                <p style={{ margin: '0.2rem 0', fontSize: '0.9rem', opacity: 0.9 }}>
+                  Rôle: {getRoleDisplay(user.role)} • Email: {user.email}
+                </p>
+              </div>
+            </div>
             
-            <div className="hero-description">
-              <div style={{ 
-                background: 'rgba(255, 255, 255, 0.8)', 
-                padding: '2rem', 
-                borderRadius: '15px',
-                marginBottom: '2rem'
-              }}>
-                <p>Bienvenue, <strong>{user.firstName} {user.lastName}</strong> !</p>
-                <p>Rôle: <strong>{getRoleDisplay(user.role)}</strong></p>
-                <p>Email: <strong>{user.email}</strong></p>
-                <button 
-                  onClick={handleLogout}
-                  className="nav-btn logout-btn"
-                  style={{ marginTop: '1rem' }}
-                >
-                  Déconnexion
-                </button>
-              </div>
-            </div>
-
-            {/* Navigation par onglets */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              gap: '1rem', 
-              marginBottom: '2rem',
-              flexWrap: 'wrap'
-            }}>
-              <button 
-                className={`nav-btn ${activeTab === 'overview' ? 'login-btn' : ''}`}
-                onClick={() => setActiveTab('overview')}
-              >
-                📊 Aperçu
-              </button>
-              <button 
-                className={`nav-btn ${activeTab === 'reservations' ? 'login-btn' : ''}`}
-                onClick={() => setActiveTab('reservations')}
-              >
-                📅 Mes Réservations ({reservations.length})
-              </button>
-              <button 
-                className={`nav-btn ${activeTab === 'equipment' ? 'login-btn' : ''}`}
-                onClick={() => setActiveTab('equipment')}
-              >
-                🔧 Équipements ({equipment.length})
-              </button>
-            </div>
-
-            {/* Contenu des onglets */}
-            {activeTab === 'overview' && (
-              <div>
-                <div className="hero-features">
-                  <div className="feature">
-                    <div className="feature-icon">📅</div>
-                    <div className="feature-text">
-                      <strong>Mes Réservations</strong>
-                      <span>{reservations.length} réservation(s) au total</span>
-                      <span>{reservations.filter(r => r.status === 'pending').length} en attente</span>
-                    </div>
-                  </div>
-
-                  <div className="feature">
-                    <div className="feature-icon">🔍</div>
-                    <div className="feature-text">
-                      <strong>Équipements Disponibles</strong>
-                      <span>{equipment.length} équipement(s) disponibles</span>
-                    </div>
-                  </div>
-
-                  <div className="feature">
-                    <div className="feature-icon">📈</div>
-                    <div className="feature-text">
-                      <strong>Statistiques</strong>
-                      <span>Utilisation des équipements en temps réel</span>
-                    </div>
-                  </div>
-
-                  {(user.role === 'supervisor' || user.role === 'admin') && (
-                    <div className="feature">
-                      <div className="feature-icon">👨‍💼</div>
-                      <div className="feature-text">
-                        <strong>Gestion des Réservations</strong>
-                        <span>Validez les demandes de réservation</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Équipements récents */}
-                <div style={{ marginTop: '2rem', background: 'rgba(255, 255, 255, 0.8)', padding: '1.5rem', borderRadius: '15px' }}>
-                  <h3 style={{ color: '#8B4513', marginBottom: '1rem' }}>Équipements Disponibles</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-                    {equipment.slice(0, 3).map((item) => (
-                      <div key={item._id} style={{ 
-                        border: '1px solid #ddd', 
-                        borderRadius: '10px', 
-                        padding: '1rem',
-                        background: 'white'
-                      }}>
-                        <h4 style={{ margin: '0 0 0.5rem 0', color: '#8B4513' }}>{item.name}</h4>
-                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{item.description}</p>
-                        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#666' }}>
-                          <strong>Localisation:</strong> {item.location}
-                        </p>
-                        <button 
-                          onClick={() => handleReserveEquipment(item._id)}
-                          style={{
-                            background: '#8B4513',
-                            color: 'white',
-                            border: 'none',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '5px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Réserver
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  {equipment.length > 3 && (
-                    <button 
-                      onClick={() => setActiveTab('equipment')}
-                      style={{
-                        marginTop: '1rem',
-                        background: 'transparent',
-                        border: '1px solid #8B4513',
-                        color: '#8B4513',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '5px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Voir tous les équipements ({equipment.length})
-                    </button>
-                  )}
-                </div>
-
-                <div className="hero-actions">
-                  <button 
-                    className="btn-primary" 
-                    onClick={() => setActiveTab('equipment')}
-                  >
-                    Voir tous les Équipements
-                  </button>
-                  <button 
-                    className="btn-secondary" 
-                    onClick={() => setActiveTab('reservations')}
-                  >
-                    Mes Réservations
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'reservations' && (
-              <div style={{ 
-                background: 'rgba(255, 255, 255, 0.8)', 
-                padding: '2rem', 
-                borderRadius: '15px'
-              }}>
-                <h3 style={{ color: '#8B4513', marginBottom: '1rem' }}>Mes Réservations</h3>
-                
-                {reservations.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#666' }}>
-                    Aucune réservation pour le moment.
-                  </p>
-                ) : (
-                  <div style={{ display: 'grid', gap: '1rem' }}>
-                    {reservations.map((reservation) => (
-                      <div key={reservation._id} style={{ 
-                        border: '1px solid #ddd', 
-                        borderRadius: '10px', 
-                        padding: '1rem',
-                        background: 'white'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                          <h4 style={{ margin: 0, color: '#8B4513' }}>
-                            {reservation.equipment?.name || 'Équipement inconnu'}
-                          </h4>
-                          <span style={{ 
-                            padding: '0.25rem 0.5rem', 
-                            borderRadius: '15px', 
-                            fontSize: '0.8rem',
-                            background: reservation.status === 'approved' ? '#d4edda' : 
-                                       reservation.status === 'pending' ? '#fff3cd' : 
-                                       reservation.status === 'rejected' ? '#f8d7da' : '#e2e3e5',
-                            color: reservation.status === 'approved' ? '#155724' : 
-                                  reservation.status === 'pending' ? '#856404' : 
-                                  reservation.status === 'rejected' ? '#721c24' : '#383d41'
-                          }}>
-                            {getStatusDisplay(reservation.status)}
-                          </span>
-                        </div>
-                        <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>
-                          <strong>Date:</strong> {new Date(reservation.startTime).toLocaleString()} - {new Date(reservation.endTime).toLocaleString()}
-                        </p>
-                        <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}>
-                          <strong>Motif:</strong> {reservation.purpose}
-                        </p>
-                        {reservation.status === 'pending' && (
-                          <button 
-                            onClick={() => handleCancelReservation(reservation._id)}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid #dc3545',
-                              color: '#dc3545',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '5px',
-                              cursor: 'pointer',
-                              fontSize: '0.8rem'
-                            }}
-                          >
-                            Annuler
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'equipment' && (
-              <div style={{ 
-                background: 'rgba(255, 255, 255, 0.8)', 
-                padding: '2rem', 
-                borderRadius: '15px'
-              }}>
-                <h3 style={{ color: '#8B4513', marginBottom: '1rem' }}>Équipements Disponibles</h3>
-                
-                {equipment.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#666' }}>
-                    Aucun équipement disponible pour le moment.
-                  </p>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-                    {equipment.map((item) => (
-                      <div key={item._id} style={{ 
-                        border: '1px solid #ddd', 
-                        borderRadius: '10px', 
-                        padding: '1.5rem',
-                        background: 'white'
-                      }}>
-                        <h4 style={{ margin: '0 0 0.5rem 0', color: '#8B4513' }}>{item.name}</h4>
-                        <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem' }}>{item.description}</p>
-                        
-                        <div style={{ marginBottom: '1rem' }}>
-                          <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: '#666' }}>
-                            <strong>📍 Localisation:</strong> {item.location}
-                          </p>
-                          <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: '#666' }}>
-                            <strong>⏰ Horaires:</strong> {item.availableHours?.start} - {item.availableHours?.end}
-                          </p>
-                          <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: '#666' }}>
-                            <strong>📋 Conditions:</strong> {item.accessConditions}
-                          </p>
-                          <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: '#666' }}>
-                            <strong>✅ Validation:</strong> {item.requiresApproval ? 'Manuelle' : 'Automatique'}
-                          </p>
-                        </div>
-                        
-                        <button 
-                          onClick={() => handleReserveEquipment(item._id)}
-                          style={{
-                            background: '#8B4513',
-                            color: 'white',
-                            border: 'none',
-                            padding: '0.75rem 1.5rem',
-                            borderRadius: '5px',
-                            cursor: 'pointer',
-                            width: '100%'
-                          }}
-                        >
-                          Réserver cet équipement
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <button 
+              onClick={handleLogout}
+              style={{
+                padding: '0.75rem 1.5rem',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = 'rgba(255,255,255,0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = 'rgba(255,255,255,0.2)';
+              }}
+            >
+               Déconnexion
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Pied de page */}
-      <footer className="footer">
-        <div className="footer-container">
-          <div className="footer-content">
-            <div className="footer-section">
-              <div className="footer-logo">
-                <h3>ReservaEquip</h3>
-                <p>Votre partenaire de gestion d'équipements</p>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+        {/* Navigation par onglets */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem', 
+          marginBottom: '3rem',
+          flexWrap: 'wrap',
+          background: 'white',
+          padding: '1rem',
+          borderRadius: '15px',
+          boxShadow: '0 5px 15px rgba(65, 105, 225, 0.1)',
+          border: '2px solid #4169E1'
+        }}>
+          <button 
+            onClick={() => setActiveTab('overview')}
+            style={{ 
+              flex: '1', 
+              minWidth: '120px',
+              padding: '1rem 1.5rem',
+              border: `2px solid ${activeTab === 'overview' ? '#4169E1' : 'rgba(65, 105, 225, 0.3)'}`,
+              borderRadius: '8px',
+              background: activeTab === 'overview' ? '#4169E1' : 'rgba(65, 105, 225, 0.1)',
+              color: activeTab === 'overview' ? 'white' : '#4169E1',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            📊 Aperçu
+          </button>
+          <button 
+            onClick={() => setActiveTab('equipment')}
+            style={{ 
+              flex: '1', 
+              minWidth: '120px',
+              padding: '1rem 1.5rem',
+              border: `2px solid ${activeTab === 'equipment' ? '#4169E1' : 'rgba(65, 105, 225, 0.3)'}`,
+              borderRadius: '8px',
+              background: activeTab === 'equipment' ? '#4169E1' : 'rgba(65, 105, 225, 0.1)',
+              color: activeTab === 'equipment' ? 'white' : '#4169E1',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            🔧 Équipements
+          </button>
+          <button 
+            onClick={() => setActiveTab('reservations')}
+            style={{ 
+              flex: '1', 
+              minWidth: '120px',
+              padding: '1rem 1.5rem',
+              border: `2px solid ${activeTab === 'reservations' ? '#4169E1' : 'rgba(65, 105, 225, 0.3)'}`,
+              borderRadius: '8px',
+              background: activeTab === 'reservations' ? '#4169E1' : 'rgba(65, 105, 225, 0.1)',
+              color: activeTab === 'reservations' ? 'white' : '#4169E1',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            📅 Réservations
+          </button>
+          {(user.role === 'supervisor' || user.role === 'admin') && (
+            <button 
+              onClick={() => setActiveTab('admin')}
+              style={{ 
+                flex: '1', 
+                minWidth: '120px',
+                padding: '1rem 1.5rem',
+                border: `2px solid ${activeTab === 'admin' ? '#4169E1' : 'rgba(65, 105, 225, 0.3)'}`,
+                borderRadius: '8px',
+                background: activeTab === 'admin' ? '#4169E1' : 'rgba(65, 105, 225, 0.1)',
+                color: activeTab === 'admin' ? 'white' : '#4169E1',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              ⚙️ Administration
+            </button>
+          )}
+        </div>
+
+        {/* Contenu des onglets */}
+        {activeTab === 'overview' && (
+          <div>
+            {/* Cartes de statistiques */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '2rem',
+              marginBottom: '3rem'
+            }}>
+              <StatCard 
+                icon="🔧"
+                title="Équipements Totaux"
+                value={stats.totalEquipments}
+                color="#4169E1"
+              />
+              <StatCard 
+                icon="✅"
+                title="Équipements Disponibles"
+                value={stats.availableEquipments}
+                color="#27ae60"
+              />
+              <StatCard 
+                icon="🛠️"
+                title="En Maintenance"
+                value={stats.maintenanceEquipments}
+                color="#f39c12"
+              />
+              <StatCard 
+                icon="📅"
+                title="Réservations"
+                value={stats.totalReservations}
+                color="#3498db"
+              />
+            </div>
+
+            {/* Actions rapides */}
+            <div style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '15px',
+              boxShadow: '0 5px 15px rgba(65, 105, 225, 0.1)',
+              marginBottom: '2rem',
+              border: '2px solid #4169E1'
+            }}>
+              <h2 style={{ color: '#4169E1', marginBottom: '1.5rem' }}>Actions Rapides</h2>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                <QuickAction
+                  icon="🔍"
+                  title="Voir les Équipements"
+                  description="Parcourir tous les équipements disponibles"
+                  onClick={() => setActiveTab('equipment')}
+                  color="#4169E1"
+                />
+                <QuickAction
+                  icon="📅"
+                  title="Mes Réservations"
+                  description="Consulter et gérer mes réservations"
+                  onClick={() => setActiveTab('reservations')}
+                  color="#3498db"
+                />
+                {(user.role === 'supervisor' || user.role === 'admin') && (
+                  <QuickAction
+                    icon="➕"
+                    title="Ajouter un Équipement"
+                    description="Ajouter un nouvel équipement au catalogue"
+                    onClick={() => {
+                      setActiveTab('equipment');
+                      setTimeout(() => {
+                        const addButton = document.querySelector('[class*="btn-primary"]');
+                        if (addButton) addButton.click();
+                      }, 100);
+                    }}
+                    color="#27ae60"
+                  />
+                )}
+                <QuickAction
+                  icon="📊"
+                  title="Rapports d'Usage"
+                  description="Consulter les statistiques d'utilisation"
+                  onClick={() => alert('Fonctionnalité à venir! 📈')}
+                  color="#9b59b6"
+                />
               </div>
-              <p className="footer-description">
+            </div>
+
+            {/* Équipements récents */}
+            <div style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '15px',
+              boxShadow: '0 5px 15px rgba(65, 105, 225, 0.1)',
+              border: '2px solid #4169E1'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.5rem',
+                flexWrap: 'wrap',
+                gap: '1rem'
+              }}>
+                <h2 style={{ color: '#4169E1', margin: 0 }}>Équipements Récents</h2>
+                <button 
+                  onClick={() => setActiveTab('equipment')}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '2px solid rgba(65, 105, 225, 0.3)',
+                    borderRadius: '8px',
+                    background: 'rgba(65, 105, 225, 0.1)',
+                    color: '#4169E1',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.background = 'rgba(65, 105, 225, 0.2)';
+                    e.target.style.borderColor = 'rgba(65, 105, 225, 0.5)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = 'rgba(65, 105, 225, 0.1)';
+                    e.target.style.borderColor = 'rgba(65, 105, 225, 0.3)';
+                  }}
+                >
+                  Voir tous les équipements →
+                </button>
+              </div>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                {(() => {
+                  const equipments = JSON.parse(localStorage.getItem('equipments')) || [];
+                  const recentEquipments = equipments.slice(0, 2);
+                  
+                  if (recentEquipments.length === 0) {
+                    return (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '2rem',
+                        gridColumn: '1 / -1',
+                        color: '#00308F'
+                      }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔧</div>
+                        <p>Aucun équipement n'a été ajouté pour le moment.</p>
+                        {(user.role === 'supervisor' || user.role === 'admin') && (
+                          <button 
+                            onClick={() => setActiveTab('equipment')}
+                            style={{
+                              padding: '0.75rem 1.5rem',
+                              border: '2px solid #4169E1',
+                              borderRadius: '8px',
+                              background: '#4169E1',
+                              color: 'white',
+                              fontSize: '1rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              marginTop: '1rem'
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.background = '#00308F';
+                              e.target.style.borderColor = '#00308F';
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.background = '#4169E1';
+                              e.target.style.borderColor = '#4169E1';
+                            }}
+                          >
+                            Ajouter le premier équipement
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return recentEquipments.map(equipment => (
+                    <div key={equipment.id} style={{
+                      background: 'rgba(65, 105, 225, 0.05)',
+                      padding: '1.5rem',
+                      borderRadius: '12px',
+                      border: '2px solid rgba(65, 105, 225, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      transition: 'transform 0.3s ease'
+                    }}>
+                      <div style={{ fontSize: '2.5rem' }}>{equipment.image}</div>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ color: '#4169E1', margin: '0 0 0.5rem 0' }}>
+                          {equipment.name}
+                        </h4>
+                        <p style={{ 
+                          color: '#00308F', 
+                          margin: '0 0 0.5rem 0',
+                          fontSize: '0.9rem'
+                        }}>
+                          {equipment.location}
+                        </p>
+                        <div style={{
+                          display: 'inline-block',
+                          background: equipment.status === 'available' ? '#27ae60' : 
+                                    equipment.status === 'maintenance' ? '#f39c12' : '#e74c3c',
+                          color: 'white',
+                          padding: '0.2rem 0.8rem',
+                          borderRadius: '15px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600'
+                        }}>
+                          {equipment.status === 'available' ? 'Disponible' : 
+                           equipment.status === 'maintenance' ? 'En Maintenance' : 'Hors Service'}
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'equipment' && (
+          <EquipmentManagement userRole={user.role} />
+        )}
+
+        {activeTab === 'reservations' && (
+          <div style={{
+            background: 'white',
+            padding: '3rem',
+            borderRadius: '15px',
+            boxShadow: '0 5px 15px rgba(65, 105, 225, 0.1)',
+            textAlign: 'center',
+            border: '2px solid #4169E1'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📅</div>
+            <h2 style={{ color: '#4169E1', marginBottom: '1rem' }}>Gestion des Réservations</h2>
+            <p style={{ color: '#00308F', marginBottom: '2rem', fontSize: '1.1rem' }}>
+              Le système de réservation sera disponible dans le prochain sprint.
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '1.5rem',
+              maxWidth: '600px',
+              margin: '0 auto'
+            }}>
+              <div style={{
+                background: 'rgba(65, 105, 225, 0.05)',
+                padding: '1.5rem',
+                borderRadius: '10px',
+                border: '2px dashed #4169E1'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔍</div>
+                <h4 style={{ color: '#4169E1', margin: '0 0 0.5rem 0' }}>Recherche</h4>
+                <p style={{ color: '#00308F', margin: 0, fontSize: '0.9rem' }}>
+                  Trouvez des créneaux disponibles
+                </p>
+              </div>
+              <div style={{
+                background: 'rgba(65, 105, 225, 0.05)',
+                padding: '1.5rem',
+                borderRadius: '10px',
+                border: '2px dashed #4169E1'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📋</div>
+                <h4 style={{ color: '#4169E1', margin: '0 0 0.5rem 0' }}>Planning</h4>
+                <p style={{ color: '#00308F', margin: 0, fontSize: '0.9rem' }}>
+                  Visualisez le calendrier des réservations
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'admin' && (user.role === 'supervisor' || user.role === 'admin') && (
+          <div style={{
+            background: 'white',
+            padding: '3rem',
+            borderRadius: '15px',
+            boxShadow: '0 5px 15px rgba(65, 105, 225, 0.1)',
+            textAlign: 'center',
+            border: '2px solid #4169E1'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚙️</div>
+            <h2 style={{ color: '#4169E1', marginBottom: '1rem' }}>Espace Administration</h2>
+            <p style={{ color: '#00308F', marginBottom: '2rem' }}>
+              Interface d'administration complète - Disponible prochainement
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+              maxWidth: '500px',
+              margin: '0 auto'
+            }}>
+              <button style={{
+                padding: '1rem',
+                border: '2px solid rgba(65, 105, 225, 0.3)',
+                borderRadius: '8px',
+                background: 'rgba(65, 105, 225, 0.1)',
+                color: '#4169E1',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}>
+                👥 Gestion Utilisateurs
+              </button>
+              <button style={{
+                padding: '1rem',
+                border: '2px solid rgba(65, 105, 225, 0.3)',
+                borderRadius: '8px',
+                background: 'rgba(65, 105, 225, 0.1)',
+                color: '#4169E1',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}>
+                📊 Statistiques Avancées
+              </button>
+              <button style={{
+                padding: '1rem',
+                border: '2px solid rgba(65, 105, 225, 0.3)',
+                borderRadius: '8px',
+                background: 'rgba(65, 105, 225, 0.1)',
+                color: '#4169E1',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}>
+                ⚠️ Gestion des Incidents
+              </button>
+              <button style={{
+                padding: '1rem',
+                border: '2px solid rgba(65, 105, 225, 0.3)',
+                borderRadius: '8px',
+                background: 'rgba(65, 105, 225, 0.1)',
+                color: '#4169E1',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}>
+                🔧 Paramètres Système
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Pied de page */}
+      <footer style={{
+        background: 'linear-gradient(135deg, #4169E1 0%, #1E90FF 100%)',
+        color: 'white',
+        marginTop: '4rem'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '2rem',
+            padding: '3rem 0 2rem 0'
+          }}>
+            <div>
+              <h3 style={{ margin: '0 0 1rem 0' }}>ReservaEquip</h3>
+              <p style={{ margin: '0 0 1rem 0', opacity: 0.9 }}>
+                Votre partenaire de gestion d'équipements
+              </p>
+              <p style={{ margin: 0, opacity: 0.8, fontSize: '0.9rem' }}>
                 Plateforme de réservation d'équipements partagés - 
                 Simplifiez la gestion de vos ressources.
               </p>
             </div>
             
-            <div className="footer-section">
-              <h4>Navigation</h4>
-              <ul className="footer-links">
-                <li><button onClick={() => navigate('/dashboard')}>Tableau de Bord</button></li>
-                <li><button onClick={() => setActiveTab('reservations')}>Mes Réservations</button></li>
-                <li><button onClick={() => setActiveTab('equipment')}>Équipements</button></li>
+            <div>
+              <h4 style={{ margin: '0 0 1rem 0' }}>Navigation</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <li style={{ marginBottom: '0.5rem' }}>
+                  <button 
+                    onClick={() => setActiveTab('overview')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      opacity: 0.8,
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    Tableau de Bord
+                  </button>
+                </li>
+                <li style={{ marginBottom: '0.5rem' }}>
+                  <button 
+                    onClick={() => setActiveTab('equipment')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      opacity: 0.8,
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    Équipements
+                  </button>
+                </li>
+                <li style={{ marginBottom: '0.5rem' }}>
+                  <button 
+                    onClick={() => setActiveTab('reservations')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      opacity: 0.8,
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    Réservations
+                  </button>
+                </li>
               </ul>
             </div>
             
-            <div className="footer-section">
-              <h4>Support</h4>
-              <ul className="footer-links">
-                <li><span>Aide & Support</span></li>
-                <li><span>Contact</span></li>
-                <li><span>FAQ</span></li>
+            <div>
+              <h4 style={{ margin: '0 0 1rem 0' }}>Support</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <li style={{ marginBottom: '0.5rem', opacity: 0.8, fontSize: '0.9rem' }}>Aide & Support</li>
+                <li style={{ marginBottom: '0.5rem', opacity: 0.8, fontSize: '0.9rem' }}>Contact</li>
+                <li style={{ marginBottom: '0.5rem', opacity: 0.8, fontSize: '0.9rem' }}>FAQ</li>
               </ul>
             </div>
             
-            <div className="footer-section">
-              <h4>Légal</h4>
-              <ul className="footer-links">
-                <li><span>Mentions Légales</span></li>
-                <li><span>Confidentialité</span></li>
-                <li><span>CGU</span></li>
+            <div>
+              <h4 style={{ margin: '0 0 1rem 0' }}>Légal</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                <li style={{ marginBottom: '0.5rem', opacity: 0.8, fontSize: '0.9rem' }}>Mentions Légales</li>
+                <li style={{ marginBottom: '0.5rem', opacity: 0.8, fontSize: '0.9rem' }}>Confidentialité</li>
+                <li style={{ marginBottom: '0.5rem', opacity: 0.8, fontSize: '0.9rem' }}>CGU</li>
               </ul>
             </div>
           </div>
           
-          <div className="footer-bottom">
-            <div className="footer-bottom-content">
-              <p>&copy; 2024 ReservaEquip. Tous droits réservés.</p>
-              <div className="footer-social">
-                <span>Suivez-nous :</span>
-                <button className="social-icon">📘</button>
-                <button className="social-icon">🐦</button>
-                <button className="social-icon">📸</button>
-              </div>
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            padding: '1.5rem 0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <p style={{ margin: 0, opacity: 0.8 }}>
+              &copy; 2024 ReservaEquip. Tous droits réservés.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>Suivez-nous :</span>
+              <button style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                opacity: 0.8
+              }}>📘</button>
+              <button style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                opacity: 0.8
+              }}>🐦</button>
+              <button style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                opacity: 0.8
+              }}>📸</button>
             </div>
           </div>
         </div>

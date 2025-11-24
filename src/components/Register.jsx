@@ -12,15 +12,43 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false
+  });
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
     setError('');
+
+    // Validation en temps réel du mot de passe
+    if (name === 'password') {
+      validatePassword(value);
+    }
+  };
+
+  const validatePassword = (password) => {
+    const requirements = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    };
+    setPasswordRequirements(requirements);
   };
 
   const handleUserTypeSelect = (role) => {
     setFormData({ ...formData, role });
+  };
+
+  const isPasswordValid = () => {
+    return Object.values(passwordRequirements).every(req => req === true);
   };
 
   const handleSubmit = async (e) => {
@@ -34,8 +62,8 @@ const Register = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+    if (!isPasswordValid()) {
+      setError('Le mot de passe ne respecte pas toutes les exigences de sécurité');
       setLoading(false);
       return;
     }
@@ -65,6 +93,26 @@ const Register = () => {
       setLoading(false);
     }
   };
+
+  const RequirementItem = ({ met, text }) => (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      marginBottom: '0.3rem',
+      fontSize: '0.8rem'
+    }}>
+      <span style={{ 
+        marginRight: '0.5rem',
+        color: met ? '#27ae60' : '#e74c3c',
+        fontWeight: 'bold'
+      }}>
+        {met ? '✓' : '✗'}
+      </span>
+      <span style={{ color: met ? '#27ae60' : '#666' }}>
+        {text}
+      </span>
+    </div>
+  );
 
   return (
     <div className="register-page">
@@ -109,7 +157,7 @@ const Register = () => {
                   </div>
                 </div>
               </div>
-              <p style={{ color: '#8B4513', fontSize: '0.9rem', textAlign: 'center', marginTop: '1rem' }}>
+              <p style={{ color: '#1565c0', fontSize: '0.9rem', textAlign: 'center', marginTop: '1rem' }}>
                 ⓘ Le rôle administrateur est attribué manuellement
               </p>
             </div>
@@ -161,11 +209,75 @@ const Register = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    minLength="6"
                   />
-                  <small style={{ color: '#8B4513', fontSize: '0.8rem' }}>
-                    Minimum 6 caractères
-                  </small>
+                  
+                  {/* Indicateur de force du mot de passe */}
+                  {formData.password && (
+                    <div style={{ 
+                      marginTop: '0.5rem',
+                      padding: '0.8rem',
+                      background: '#f8f9fa',
+                      borderRadius: '8px',
+                      border: '1px solid #e9ecef'
+                    }}>
+                      <div style={{ 
+                        marginBottom: '0.5rem',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        color: '#4169E1'
+                      }}>
+                        Exigences de sécurité :
+                      </div>
+                      <RequirementItem 
+                        met={passwordRequirements.length} 
+                        text="Au moins 8 caractères" 
+                      />
+                      <RequirementItem 
+                        met={passwordRequirements.uppercase} 
+                        text="Au moins une majuscule (A-Z)" 
+                      />
+                      <RequirementItem 
+                        met={passwordRequirements.lowercase} 
+                        text="Au moins une minuscule (a-z)" 
+                      />
+                      <RequirementItem 
+                        met={passwordRequirements.number} 
+                        text="Au moins un chiffre (0-9)" 
+                      />
+                      <RequirementItem 
+                        met={passwordRequirements.special} 
+                        text="Au moins un caractère spécial (!@#$%^&*...)" 
+                      />
+                      
+                      {/* Barre de progression */}
+                      <div style={{ 
+                        marginTop: '0.5rem',
+                        height: '4px',
+                        background: '#e9ecef',
+                        borderRadius: '2px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          height: '100%',
+                          background: isPasswordValid() ? '#27ae60' : 
+                                    Object.values(passwordRequirements).filter(Boolean).length >= 3 ? '#f39c12' : '#e74c3c',
+                          width: `${(Object.values(passwordRequirements).filter(Boolean).length / 5) * 100}%`,
+                          transition: 'all 0.3s ease'
+                        }} />
+                      </div>
+                      
+                      <div style={{ 
+                        marginTop: '0.3rem',
+                        fontSize: '0.7rem',
+                        textAlign: 'center',
+                        color: isPasswordValid() ? '#27ae60' : '#666',
+                        fontWeight: '600'
+                      }}>
+                        {isPasswordValid() ? 'Mot de passe sécurisé ✓' : 
+                         `Force: ${Object.values(passwordRequirements).filter(Boolean).length}/5`}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -178,13 +290,27 @@ const Register = () => {
                     onChange={handleChange}
                     required
                   />
+                  {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                    <small style={{ color: '#e74c3c', fontSize: '0.8rem' }}>
+                      ✗ Les mots de passe ne correspondent pas
+                    </small>
+                  )}
+                  {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                    <small style={{ color: '#27ae60', fontSize: '0.8rem' }}>
+                      ✓ Les mots de passe correspondent
+                    </small>
+                  )}
                 </div>
               </div>
 
               <button 
                 type="submit" 
                 className="register-btn"
-                disabled={loading}
+                disabled={loading || !isPasswordValid() || formData.password !== formData.confirmPassword}
+                style={{
+                  opacity: (loading || !isPasswordValid() || formData.password !== formData.confirmPassword) ? 0.6 : 1,
+                  cursor: (loading || !isPasswordValid() || formData.password !== formData.confirmPassword) ? 'not-allowed' : 'pointer'
+                }}
               >
                 {loading ? 'Création du compte...' : 'Créer mon compte'}
               </button>
